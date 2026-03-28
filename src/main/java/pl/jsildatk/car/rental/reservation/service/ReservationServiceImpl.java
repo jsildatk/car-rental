@@ -9,6 +9,8 @@ import pl.jsildatk.car.rental.car.service.CarService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ReservationServiceImpl implements ReservationService {
 
-    private final Map<String, Reservation> reservations = new ConcurrentHashMap<>();
+    private final Map<String, List<Reservation>> reservationsPerCar = new ConcurrentHashMap<>();
 
     private final CarService carService;
 
@@ -40,23 +42,27 @@ public class ReservationServiceImpl implements ReservationService {
                 throw new CarNotAvailableException(carId, startTime, endTime);
             }
             reservation = new Reservation(UUID.randomUUID().toString(), carId, customerId, startTime, endTime, calculateCost(numberOfDays, car.pricePerDay()));
-            reservations.put(reservation.id(), reservation);
+            mergeReservations(carId, reservation);
         }
 
         return reservation;
     }
 
-    private boolean isCarAvailable(String carId, LocalDateTime startTime, LocalDateTime endTime) {
-        List<Reservation> reservationsForCar = findReservationsForCar(carId);
-
-        return reservationsForCar.isEmpty() || reservationsForCar.stream()
-                .noneMatch(reservation -> isOverlapping(reservation, startTime, endTime));
+    private void mergeReservations(String carId, Reservation reservation) {
+        List<Reservation> reservations = reservationsPerCar.get(carId);
+        if (reservations != null) {
+            reservations.add(reservation);
+            reservationsPerCar.put(carId, reservations);
+        } else {
+            List<Reservation> newList = new ArrayList<>(Collections.singleton(reservation));
+            reservationsPerCar.put(carId, Collections.synchronizedList(newList));
+        }
     }
 
-    private List<Reservation> findReservationsForCar(String carId) {
-        return reservations.values().stream()
-                .filter(reservation -> reservation.carId().equals(carId))
-                .toList();
+    private boolean isCarAvailable(String carId, LocalDateTime startTime, LocalDateTime endTime) {
+        List<Reservation> reservationsForCar = reservationsPerCar.get(carId);
+        return reservationsForCar == null || reservationsForCar.stream()
+                .noneMatch(reservation -> isOverlapping(reservation, startTime, endTime));
     }
 
     private boolean isOverlapping(Reservation reservation, LocalDateTime startTime, LocalDateTime endTime) {

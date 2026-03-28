@@ -169,6 +169,31 @@ class ReservationServiceTest {
         assertThat(result).isNotNull();
     }
 
+    @Test
+    void differentCarsCanBeReservedInTheSameTimePeriod() throws Exception {
+        // given
+        String carId1 = "id1";
+        String carId2 = "id2";
+        String carId3 = "id3";
+        when(carService.getCar(carId1)).thenReturn(new Car(carId1, CarType.SEDAN, BigDecimal.valueOf(1)));
+        when(carService.getCar(carId2)).thenReturn(new Car(carId2, CarType.SUV, BigDecimal.valueOf(1)));
+        when(carService.getCar(carId3)).thenReturn(new Car(carId3, CarType.VAN, BigDecimal.valueOf(1)));
+        String customerId = "1";
+
+        LocalDateTime startTime = LocalDateTime.of(2026, 2, 3, 10, 0);
+
+        // when
+        Reservation reservation1 = reservationService.makeReservation(carId1, customerId, startTime, 5);
+        Reservation reservation2 = reservationService.makeReservation(carId2, customerId, startTime, 5);
+        Reservation reservation3 = reservationService.makeReservation(carId3, customerId, startTime, 5);
+
+        // then
+        assertThat(reservation1).isNotNull();
+        assertThat(reservation2).isNotNull();
+        assertThat(reservation3).isNotNull();
+    }
+
+
     @RepeatedTest(15)
     void onlyOneReservationIsMadeIfMoreThreadsTryToReserveSameCarForTheSamePeriodOfTime() throws Exception {
         // given
