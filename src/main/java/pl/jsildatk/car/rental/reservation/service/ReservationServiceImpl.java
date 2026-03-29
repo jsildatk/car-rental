@@ -8,7 +8,9 @@ import pl.jsildatk.car.rental.reservation.exceptions.CarNotAvailableException;
 import pl.jsildatk.car.rental.car.service.CarService;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,23 +23,27 @@ public class ReservationServiceImpl implements ReservationService {
     private final Map<String, List<Reservation>> reservationsPerCar = new ConcurrentHashMap<>();
 
     private final CarService carService;
+    private final Clock clock;
 
-    public ReservationServiceImpl(CarService carService) {
+    public ReservationServiceImpl(Clock clock, CarService carService) {
+        this.clock = clock;
         this.carService = carService;
     }
 
     @Override
-    public Reservation makeReservation(String carId, String customerId, LocalDateTime startTime, int numberOfDays)
+    public Reservation makeReservation(String carId, String customerId, Instant startTime, int numberOfDays)
             throws ValidationException, CarNotAvailableException, CarDoesNotExistException {
         if (numberOfDays <= 0) {
             throw new ValidationException("Number of days must be greater than zero");
+        } else if (clock.instant().isAfter(startTime)) {
+            throw new ValidationException("Start time cannot be in the past");
         }
 
         Car car = carService.getCar(carId);
         Reservation reservation;
 
         synchronized (car) {
-            LocalDateTime endTime = startTime.plusDays(numberOfDays);
+            Instant endTime = startTime.plus(numberOfDays, ChronoUnit.DAYS);
             if (!isCarAvailable(carId, startTime, endTime)) {
                 throw new CarNotAvailableException(carId, startTime, endTime);
             }
@@ -59,13 +65,13 @@ public class ReservationServiceImpl implements ReservationService {
         }
     }
 
-    private boolean isCarAvailable(String carId, LocalDateTime startTime, LocalDateTime endTime) {
+    private boolean isCarAvailable(String carId, Instant startTime, Instant endTime) {
         List<Reservation> reservationsForCar = reservationsPerCar.get(carId);
         return reservationsForCar == null || reservationsForCar.stream()
                 .noneMatch(reservation -> isOverlapping(reservation, startTime, endTime));
     }
 
-    private boolean isOverlapping(Reservation reservation, LocalDateTime startTime, LocalDateTime endTime) {
+    private boolean isOverlapping(Reservation reservation, Instant startTime, Instant endTime) {
         return startTime.isBefore(reservation.endDate()) && endTime.isAfter(reservation.startDate());
     }
 

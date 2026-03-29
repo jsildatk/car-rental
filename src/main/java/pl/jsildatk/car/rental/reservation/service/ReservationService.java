@@ -5,7 +5,7 @@ import pl.jsildatk.car.rental.car.exception.CarDoesNotExistException;
 import pl.jsildatk.car.rental.reservation.domain.Reservation;
 import pl.jsildatk.car.rental.reservation.exceptions.CarNotAvailableException;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * Service for handling reservations.
@@ -22,11 +22,11 @@ public interface ReservationService {
      * @param startTime    starting time of reservation - date and time
      * @param numberOfDays - number of days to make reservation for
      * @return created and saved {@link Reservation} object
-     * @throws ValidationException      if number of days is equal or less than 0
+     * @throws ValidationException      if numberOfDays is equal or less than 0 or startTime is in the past
      * @throws CarDoesNotExistException if requested car does not exist
      * @throws CarNotAvailableException if requested car isn't available in given time period
      */
-    Reservation makeReservation(String carId, String customerId, LocalDateTime startTime, int numberOfDays)
+    Reservation makeReservation(String carId, String customerId, Instant startTime, int numberOfDays)
             throws ValidationException, CarDoesNotExistException, CarNotAvailableException;
 
 }
